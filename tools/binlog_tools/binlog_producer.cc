@@ -4,7 +4,7 @@
 #include <glog/logging.h>
 #include <poll.h>
 #include <sys/time.h>
-
+#include <iostream>
 #include "pika_define.h"
 
 using slash::Status;
@@ -82,7 +82,7 @@ Status BinlogProducer::Produce(const Slice &item, int *temp_pro_offset) {
     assert(leftover >= 0);
     if (static_cast<size_t>(leftover) < header_size_) {
       if (leftover > 0) {
-        queue_->Append(Slice("\x00\x00\x00\x00\x00\x00\x00", leftover));
+        queue_->Append(Slice("\x00\x00\x00\x00\x00\x00\x00\x00", leftover));
         //version_->rise_pro_offset(leftover);
         *temp_pro_offset += leftover;
         //version_->StableSave();
