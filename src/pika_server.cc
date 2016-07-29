@@ -79,6 +79,11 @@ PikaServer::PikaServer() :
 
   pthread_rwlock_init(&state_protector_, NULL);
   logger_ = new Binlog(g_pika_conf->log_path(), g_pika_conf->binlog_file_size());
+
+
+  std::cout << "-----------------------" << std::endl;
+
+  InitSlaveof();
 }
 
 PikaServer::~PikaServer() {
@@ -1084,5 +1089,15 @@ uint64_t PikaServer::ServerCurrentQps() {
   }
   server_current_qps += pika_binlog_receiver_thread_->last_sec_thread_querynum();
   return server_current_qps;
+}
+
+void PikaServer::InitSlaveof() {
+  std::string masterhost = g_pika_conf->masterhost();
+  int masterport = g_pika_conf->masterport();
+
+  if (port == -1) {
+    return; 
+  }
+  SetMaster(masterhost, masterport);
 }
 

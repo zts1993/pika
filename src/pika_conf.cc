@@ -153,6 +153,18 @@ int PikaConf::Load()
     db_sync_speed_ = 125;
   }
 
+  std::string ip_port;
+  GetConfStr("slaveof", &ip_port);
+  if (!ip_port.empty()) {
+    std::vector<std::string> elems;
+    slash::StringSplit(ip_port,';', elems); 
+    if (elems.size() == 2) {
+      masterhost_ = slash::StringToLower(elems[0]);
+      if (!slash::string2l(elems[1].data(), elems[1].size(), &masterport_)) {
+        masterport_ = -1;
+      }
+    }
+  }
   return ret;
 }
 

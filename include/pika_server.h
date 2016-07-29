@@ -375,6 +375,8 @@ private:
   static void DoKeyScan(void *arg);
   void InitKeyScan();
 
+  void InitSlaveof();
+
   PikaServer(PikaServer &ps);
   void operator =(const PikaServer &ps);
 };
