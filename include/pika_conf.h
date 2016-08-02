@@ -60,8 +60,8 @@ public:
   std::string pidfile()         { return pidfile_; }
   int binlog_file_size()        { return binlog_file_size_; }
 
-  std::string masterhost()      { return masterhost_; }
-  int64_t masterport()              { return masterport_; }
+  std::string master_host()      { return master_host_; }
+  int64_t master_port()          { return master_port_; }
 
   // Setter
   void SetPort(const int value)                 { RWLock l(&rwlock_, true); port_ = value; }
@@ -164,8 +164,8 @@ private:
   int target_file_size_base_;
   int binlog_file_size_;
 
-  std::string masterhost_;
-  int64_t masterport_;
+  std::string master_host_;
+  int64_t master_port_;
 
   pthread_rwlock_t rwlock_;
 };

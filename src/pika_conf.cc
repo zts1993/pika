@@ -156,12 +156,13 @@ int PikaConf::Load()
   std::string ip_port;
   GetConfStr("slaveof", &ip_port);
   if (!ip_port.empty()) {
+    master_port_ = -1;
     std::vector<std::string> elems;
-    slash::StringSplit(ip_port,';', elems); 
+    slash::StringSplit(ip_port,' ', elems); 
     if (elems.size() == 2) {
-      masterhost_ = slash::StringToLower(elems[0]);
-      if (!slash::string2l(elems[1].data(), elems[1].size(), &masterport_)) {
-        masterport_ = -1;
+      master_host_ = slash::StringToLower(elems[0]);
+      if (!slash::string2l(elems[1].data(), elems[1].size(), &master_port_)) {
+        master_port_ = -1;
       }
     }
   }

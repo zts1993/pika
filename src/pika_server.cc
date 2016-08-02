@@ -1092,12 +1092,21 @@ uint64_t PikaServer::ServerCurrentQps() {
 }
 
 void PikaServer::InitSlaveof() {
-  std::string masterhost = g_pika_conf->masterhost();
-  int masterport = g_pika_conf->masterport();
-
-  if (port == -1) {
+  std::string master_host = g_pika_conf->master_host();
+  int master_port = g_pika_conf->master_port();
+  if (master_host.empty() && master_port == 0) {
     return; 
   }
-  SetMaster(masterhost, masterport);
+
+  if (master_port == -1) {
+    LOG(WARNING) << "invalid slaveof-config, check again";
+    return;
+  }
+ 
+ if (SetMaster(master_host, master_port)) {
+    LOG(INFO) << "config slaveof sucess";
+  } else {
+    LOG(WARNING) << "config slaveof fail";
+  }
 }
 
