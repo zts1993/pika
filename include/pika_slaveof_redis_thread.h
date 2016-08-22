@@ -1,0 +1,7 @@
+#ifndef PIKA_SLAVEOF_REDIS_THREAD_H_
+#define PIKA_SLAVEOF_REDIS_THREAD_H_
+
+
+
+
+#endif
