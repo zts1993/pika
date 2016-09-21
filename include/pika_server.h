@@ -36,8 +36,14 @@ public:
   /*
    * Get & Set 
    */
-  std::string host() {
-    return host_;
+  std::string ms_host() {
+    return ms_host_;
+  }
+  std::set<std::string>& serv_hosts() {
+    return serv_hosts_;
+  }
+  std::set<std::string>& local_hosts() {
+    return local_hosts_;
   }
   int port() {
     return port_;
@@ -274,7 +280,9 @@ void SignalNextBinlogBGSerial();
 
 private:
   std::atomic<bool> exit_;
-  std::string host_;
+  std::string ms_host_;
+  std::set<std::string> serv_hosts_;
+  std::set<std::string> local_hosts_;
   int port_;
   pthread_rwlock_t rwlock_;
   std::shared_ptr<nemo::Nemo> db_;

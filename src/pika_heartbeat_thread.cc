@@ -10,6 +10,10 @@ PikaHeartbeatThread::PikaHeartbeatThread(std::string& ip, int port, int cron_int
   HolyThread::HolyThread(ip, port, cron_interval) {
 }
 
+PikaHeartbeatThread::PikaHeartbeatThread(std::set<std::string>& ips, int port, int cron_interval) :
+  HolyThread::HolyThread(ips, port, cron_interval) {
+}
+
 PikaHeartbeatThread::~PikaHeartbeatThread() {
   LOG(INFO) << "PikaHeartbeat thread " << thread_id() << " exit!!!";
 }
@@ -71,7 +75,7 @@ void PikaHeartbeatThread::CronHandle() {
 
 bool PikaHeartbeatThread::AccessHandle(std::string& ip) {
   if (ip == "127.0.0.1") {
-    ip = g_pika_server->host();
+    ip = g_pika_server->ms_host();
   }
   slash::MutexLock l(&g_pika_server->slave_mutex_);
   std::vector<SlaveItem>::iterator iter = g_pika_server->slaves_.begin();

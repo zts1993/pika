@@ -17,6 +17,17 @@ PikaBinlogReceiverThread::PikaBinlogReceiverThread(std::string &ip, int port, in
   InitCmdTable(&cmds_);
 }
 
+PikaBinlogReceiverThread::PikaBinlogReceiverThread(std::set<std::string> &ips, int port, int cron_interval) :
+  HolyThread::HolyThread(ips, port, cron_interval),
+  thread_querynum_(0),
+  last_thread_querynum_(0),
+  last_time_us_(slash::NowMicros()),
+  last_sec_thread_querynum_(0),
+  serial_(0) {
+  cmds_.reserve(300);
+  InitCmdTable(&cmds_);
+}
+
 PikaBinlogReceiverThread::~PikaBinlogReceiverThread() {
     DestoryCmdTable(cmds_);
     LOG(INFO) << "BinlogReceiver thread " << thread_id() << " exit!!!";
@@ -24,7 +35,7 @@ PikaBinlogReceiverThread::~PikaBinlogReceiverThread() {
 
 bool PikaBinlogReceiverThread::AccessHandle(std::string& ip) {
   if (ip == "127.0.0.1") {
-    ip = g_pika_server->host();
+    ip = g_pika_server->ms_host();
   }
   if (ThreadClientNum() != 0 || !g_pika_server->ShouldAccessConnAsMaster(ip)) {
     LOG(WARNING) << "BinlogReceiverThread AccessHandle failed: " << ip;

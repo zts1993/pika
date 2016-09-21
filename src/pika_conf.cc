@@ -66,6 +66,7 @@ int PikaConf::Load()
   }
   GetConfStr("compression", &compression_);
   GetConfBool("slave-read-only", &readonly_);
+  GetConfStr("slaveof", &master_ip_port_);
   
   //
   // Immutable Sections
@@ -188,6 +189,7 @@ int PikaConf::ConfigRewrite() {
   SetConfStr("db-sync-path", db_sync_path_);
   SetConfInt("db-sync-speed", db_sync_speed_);
   SetConfStr("network-interface", network_interface_);
+  SetConfStr("slaveof", master_ip_port_);
 
   SetConfInt("binlog-file-size", binlog_file_size_);
   SetConfStr("compression", compression_);

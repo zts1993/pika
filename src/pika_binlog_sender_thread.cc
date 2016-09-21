@@ -255,7 +255,7 @@ void* PikaBinlogSenderThread::ThreadMain() {
 
     sleep(1);
     // 1. Connect to slave
-    result = cli_->Connect(ip_, port_, g_pika_server->host());
+    result = cli_->Connect(ip_, port_, g_pika_server->ms_host());
     LOG(INFO) << "BinlogSender Connect slave(" << ip_ << ":" << port_ << ") " << result.ToString();
 
     if (result.ok()) {

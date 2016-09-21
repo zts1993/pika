@@ -32,7 +32,7 @@ bool PikaTrysyncThread::Send() {
   argv.clear();
   std::string tbuf_str;
   argv.push_back("trysync");
-  argv.push_back(g_pika_server->host());
+  argv.push_back(g_pika_server->ms_host());
   argv.push_back(std::to_string(g_pika_server->port()));
   uint32_t filenum;
   uint64_t pro_offset;
@@ -77,10 +77,11 @@ bool PikaTrysyncThread::RecvProc() {
       }
       is_authed = true;
     } else {
-      if (cli_->argv_.size() == 1 &&
+      if (cli_->argv_.size() == 2 &&
           slash::string2l(reply.data(), reply.size(), &sid_)) {
+          g_pika_server->master_ip() =  cli_->argv_[1];
         // Luckly, I got your point, the sync is comming
-        LOG(INFO) << "Recv sid from master: " << sid_;
+        LOG(INFO) << "Recv sid and master's ms_host from master: " << sid_;
         break;
       }
       // Failed
@@ -208,14 +209,14 @@ void* PikaTrysyncThread::ThreadMain() {
     std::string ip_port = slash::IpPortString(master_ip, master_port);
     // We append the master ip port after module name
     // To make sure only data from current master is received
-    int ret = slash::StartRsync(dbsync_path, kDBSyncModule + "_" + ip_port, g_pika_server->host(), g_pika_conf->port() + 3000);
+    int ret = slash::StartRsync(dbsync_path, kDBSyncModule + "_" + ip_port, g_pika_server->ms_host(), g_pika_conf->port() + 3000);
     if (0 != ret) {
       LOG(WARNING) << "Failed to start rsync, path:" << dbsync_path << " error : " << ret;
     }
     LOG(INFO) << "Finish to start rsync, path:" << dbsync_path;
 
 
-    if ((cli_->Connect(master_ip, master_port, g_pika_server->host())).ok()) {
+    if ((cli_->Connect(master_ip, master_port, g_pika_server->ms_host())).ok()) {
       cli_->set_send_timeout(5000);
       cli_->set_recv_timeout(5000);
       if (Send() && RecvProc()) {

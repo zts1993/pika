@@ -34,7 +34,8 @@ void SlaveofCmd::DoInitial(PikaCmdArgsType &argv, const CmdInfo* const ptr_info)
     return;
   }
 
-  if ((master_ip_ == "127.0.0.1" || master_ip_ == g_pika_server->host()) && master_port_ == g_pika_server->port()) {
+  if (g_pika_server->local_hosts().find(master_ip_) != g_pika_server->local_hosts().end()
+      && master_port_ == g_pika_server->port()) {
     res_.SetRes(CmdRes::kErrOther, "you fucked up");
     return;
   }
@@ -130,8 +131,10 @@ void TrysyncCmd::Do() {
     LOG(INFO) << "Trysync, dont FindSlave, so AddBinlogSender";
     Status status = g_pika_server->AddBinlogSender(s, filenum_, pro_offset_);
     if (status.ok()) {
+      res_.AppendArrayLen(2);
       res_.AppendInteger(s.sid);
-      LOG(INFO) << "Send Sid to Slave: " << s.sid;
+      res_.AppendString(g_pika_server->ms_host());
+      LOG(INFO) << "Send Sid and master's ms_host ip to Slave: " << s.sid;
       g_pika_server->BecomeMaster();
     } else if (status.IsIncomplete()) {
       res_.AppendString(kInnerReplWait);
@@ -499,7 +502,7 @@ void InfoCmd::InfoServer(std::string &info) {
   tmp_stream << "thread_num:" << g_pika_conf->thread_num() << "\r\n";
   tmp_stream << "sync_thread_num:" << g_pika_conf->sync_thread_num() << "\r\n";
   tmp_stream << "uptime_in_seconds:" << (current_time_s - g_pika_server->start_time_s()) << "\r\n";
-  tmp_stream << "uptime_in_days:" << (current_time_s / (24*3600) - g_pika_server->start_time_s() / (24*3600) + 1) << "\r\n";
+  tmp_stream << "uptime_in_days:" << (current_time_s / (24*3600) - g_pika_server->start_time_s() / (24*3600)) << "\r\n";
   tmp_stream << "config_file:" << g_pika_conf->conf_path() << "\r\n";
   
   info.append(tmp_stream.str());
@@ -840,8 +843,12 @@ void ConfigCmd::ConfigGet(std::string &ret) {
     } else {
       EncodeString(&ret, "no");
     }
+  } else if (get_item == "slaveof") {
+    ret = "*2\r\n";
+    EncodeString(&ret, "slaveof");
+    EncodeString(&ret, g_pika_conf->master_ip_port());
   } else if (get_item == "*") {
-    ret = "*64\r\n";
+    ret = "*66\r\n";
     EncodeString(&ret, "port");
     EncodeInt32(&ret, g_pika_conf->port());
     EncodeString(&ret, "thread-num");
@@ -906,6 +913,8 @@ void ConfigCmd::ConfigGet(std::string &ret) {
     EncodeInt32(&ret, g_pika_conf->db_sync_speed());
     EncodeString(&ret, "network-interface");
     EncodeString(&ret, g_pika_conf->network_interface());
+    EncodeString(&ret, "slaveof");
+    EncodeString(&ret, g_pika_conf->master_ip_port());
   } else {
     ret = "*0\r\n";
   }

@@ -15,6 +15,10 @@ PikaDispatchThread::PikaDispatchThread(std::string &ip, int port, int work_num, 
   DispatchThread::DispatchThread(ip, port, work_num, reinterpret_cast<pink::WorkerThread<PikaClientConn>**>(pika_worker_thread), cron_interval) {
 }
 
+PikaDispatchThread::PikaDispatchThread(std::set<std::string> &ips, int port, int work_num, PikaWorkerThread** pika_worker_thread, int cron_interval) :
+  DispatchThread::DispatchThread(ips, port, work_num, reinterpret_cast<pink::WorkerThread<PikaClientConn>**>(pika_worker_thread), cron_interval) {
+}
+
 PikaDispatchThread::~PikaDispatchThread() {
   LOG(INFO) << "dispatch thread " << thread_id() << " exit!!!";
 }
@@ -37,12 +41,12 @@ void PikaDispatchThread::CronHandle() {
 
 bool PikaDispatchThread::AccessHandle(std::string& ip) {
   if (ip == "127.0.0.1") {
-    ip = g_pika_server->host();
+    ip = g_pika_server->ms_host(); //this is just for displaying, replcace 127.0.0.1
   }
 
   int client_num = ClientNum();
   if ((client_num >= g_pika_conf->maxclients() + g_pika_conf->root_connection_num())
-      || (client_num >= g_pika_conf->maxclients() && ip != g_pika_server->host())) {
+      || (client_num >= g_pika_conf->maxclients() && g_pika_server->local_hosts().find(ip) == g_pika_server->local_hosts().end())) {
     LOG(WARNING) << "Max connections reach, Deny new comming: " << ip;
     return false;
   }

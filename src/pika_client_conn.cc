@@ -51,12 +51,10 @@ std::string PikaClientConn::DoCmd(const std::string& opt) {
   }
 
   // For now, only shutdown need check local
-  if (cinfo_ptr->is_local()) {
-    if (ip_port().find("127.0.0.1") == std::string::npos
-        && ip_port().find(g_pika_server->host()) == std::string::npos) {
-      LOG(WARNING) << "\'shutdown\' should be localhost";
-      return "-ERR \'shutdown\' should be localhost\r\n";
-    }
+  if (cinfo_ptr->is_local() 
+      && g_pika_server->local_hosts().find(ip_port().substr(0, ip_port().find(":"))) == g_pika_server->local_hosts().end()) {
+    LOG(WARNING) << "\'shutdown\' should be localhost";
+    return "-ERR \'shutdown\' should be localhost\r\n";
   }
 
   std::string monitor_message;

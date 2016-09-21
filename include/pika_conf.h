@@ -20,6 +20,7 @@ public:
 
   // Getter
   int port()              { RWLock l(&rwlock_, false); return port_; }
+  std::string master_ip_port() { RWLock l(&rwlock_, false); return master_ip_port_; }
   int thread_num()        { RWLock l(&rwlock_, false); return thread_num_; }
   int sync_thread_num()        { RWLock l(&rwlock_, false); return sync_thread_num_; }
   int sync_buffer_size()        { RWLock l(&rwlock_, false); return sync_buffer_size_; }
@@ -73,6 +74,10 @@ public:
       bgsave_path_ += "/";
     }
   }
+  void SetMasterIpPort(const std::string& value) {
+    RWLock l(&rwlock_, true);
+    master_ip_port_ = value; 
+  }
   void SetBgsavePrefix(const std::string &value) {
     RWLock l(&rwlock_, true);
     bgsave_prefix_ = value;
@@ -122,6 +127,7 @@ public:
 
 private:
   int port_;
+  std::string master_ip_port_;
   int thread_num_;
   int sync_thread_num_;
   int sync_buffer_size_;

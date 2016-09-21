@@ -66,9 +66,9 @@ PikaServer::PikaServer() :
     pika_worker_thread_[i] = new PikaWorkerThread(1000);
   }
 
-  pika_dispatch_thread_ = new PikaDispatchThread(host_, port_, worker_num_, pika_worker_thread_, 3000);
-  pika_binlog_receiver_thread_ = new PikaBinlogReceiverThread(host_, port_ + 1000, 1000);
-  pika_heartbeat_thread_ = new PikaHeartbeatThread(host_, port_ + 2000, 1000);
+  pika_dispatch_thread_ = new PikaDispatchThread(serv_hosts_, port_, worker_num_, pika_worker_thread_, 3000);
+  pika_binlog_receiver_thread_ = new PikaBinlogReceiverThread(serv_hosts_, port_ + 1000, 1000);
+  pika_heartbeat_thread_ = new PikaHeartbeatThread(serv_hosts_, port_ + 2000, 1000);
   pika_trysync_thread_ = new PikaTrysyncThread();
   monitor_thread_ = new PikaMonitorThread();
   
@@ -130,8 +130,12 @@ PikaServer::~PikaServer() {
 
 bool PikaServer::ServerInit() {
 	std::string network_interface = g_pika_conf->network_interface();
-
+  std::vector<std::string> tmp;
+  slash::StringSplit(network_interface, ',', tmp);
+  std::set<std::string> interfaces(tmp.begin(), tmp.end());
+  std::string ms_interface;
   if (network_interface == "") {
+    LOG(INFO) << "Using Networker Interface: 0.0.0.0 as out-service interfaces";
 	
 	  std::ifstream routeFile("/proc/net/route", std::ios_base::in);
 	  if (!routeFile.good())
@@ -152,56 +156,87 @@ bool PikaServer::ServerInit() {
 	      // field, Destination, set to "00000000"
 	      if ((tokens.size() >= 2) && (tokens[1] == std::string("00000000")))
 	      {
-	          network_interface = tokens[0];
+	          ms_interface = tokens[0];
 	          break;
 	      }
 	  
 	      tokens.clear();
 	  }
 	  routeFile.close();
-  } 
-	LOG(INFO) << "Using Networker Interface: " << network_interface;
+  } else {
+    LOG(INFO) << "Using Networker Interface: " << network_interface << " as out-service interfaces";
+    if (interfaces.size() == 1 && *interfaces.begin() == "lo") {
+      ms_interface = *interfaces.begin();
+    } else {
+      for (std::set<std::string>::const_iterator iter = interfaces.begin();
+          iter != interfaces.end();
+          ++iter) {
+        if (*iter != "lo") {
+          ms_interface = *iter;
+          break;
+        }
+      }
+    }
+  }
+	LOG(INFO) << "Using Networker Interface: " << ms_interface << " as master-slave interface";
+
 
 	struct ifaddrs * ifAddrStruct = NULL;
   struct ifaddrs * ifa = NULL;
   void * tmpAddrPtr = NULL;
+  bool obtained = false;
 
   getifaddrs(&ifAddrStruct);
 
   for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
-      if (ifa ->ifa_addr->sa_family==AF_INET) { // Check it is
+      if (ifa->ifa_addr->sa_family==AF_INET) { // Check it is
           // a valid IPv4 address
           tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
           char addressBuffer[INET_ADDRSTRLEN];
           inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
-					if (std::string(ifa->ifa_name) == network_interface) {
-						host_ = addressBuffer;
-						break;
+					if (std::string(ifa->ifa_name) == ms_interface) {
+						ms_host_ = addressBuffer;
+            obtained = true;
 					}
+          if (interfaces.empty() || interfaces.find(std::string(ifa->ifa_name)) != interfaces.end()) {
+            serv_hosts_.insert(std::string(addressBuffer));
+          }
+          local_hosts_.insert(std::string(addressBuffer));
       }
       else if (ifa->ifa_addr->sa_family==AF_INET6) { // Check it is
           // a valid IPv6 address
           tmpAddrPtr = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
           char addressBuffer[INET6_ADDRSTRLEN];
           inet_ntop(AF_INET6, tmpAddrPtr, addressBuffer, INET6_ADDRSTRLEN);
-					if (std::string(ifa->ifa_name) == network_interface) {
-						host_ = addressBuffer;
-						break;
+					if (std::string(ifa->ifa_name) == ms_interface) {
+						ms_host_ = addressBuffer;
+            obtained = true;
 					}
+          if (interfaces.empty() || interfaces.find(std::string(ifa->ifa_name)) != interfaces.end()) {
+            serv_hosts_.insert(std::string(addressBuffer));
+          }
+          local_hosts_.insert(std::string(addressBuffer));
       }
   }
 
   if (ifAddrStruct != NULL) {
       freeifaddrs(ifAddrStruct);
 	}
-  if (ifa == NULL) {
+  if (ifa == NULL && !obtained) {
     LOG(FATAL) << "error network interface: " << network_interface << ", please check!";
   }
 
 	port_ = g_pika_conf->port();	
-  LOG(INFO) << "host: " << host_ << " port: " << port_;
+  LOG(INFO) << "ms_host: " << ms_host_;
+  std::string serv_hosts_str;
+  for (std::set<std::string>::const_iterator iter = serv_hosts_.begin();
+      iter != serv_hosts_.end();
+      ++iter) {
+    serv_hosts_str.append(*iter);
+    serv_hosts_str.append(" ");
+  }
+  LOG(INFO) << "serv_hosts: " << serv_hosts_str << " port: " << port_; 
 	return true;
-
 }
 
 void PikaServer::Cleanup() {
@@ -229,6 +264,18 @@ void PikaServer::Start() {
   time(&start_time_s_);
 
   //SetMaster("127.0.0.1", 9221);
+
+  std::string master_ip_port = g_pika_conf->master_ip_port();
+  if (!master_ip_port.empty()) {
+    int32_t sep = master_ip_port.find(":");
+    std::string master_ip = master_ip_port.substr(0, sep);
+    int32_t master_port = std::stoi(master_ip_port.substr(sep+1));
+    if (local_hosts_.find(master_ip) != local_hosts_.end() && master_port == port_) {
+      LOG(FATAL) << "you will slaveof yourself as the config file, please check";
+    } else {
+      SetMaster(master_ip, master_port);
+    }
+  }
 
   LOG(INFO) << "Pika Server going to start";
   while (!exit_) {
@@ -365,7 +412,7 @@ void PikaServer::BecomeMaster() {
 
 bool PikaServer::SetMaster(std::string& master_ip, int master_port) {
   if (master_ip == "127.0.0.1") {
-    master_ip = host_;
+    master_ip = ms_host_;
   }
   slash::RWLock l(&state_protector_, true);
   if ((role_ ^ PIKA_ROLE_SLAVE) && repl_state_ == PIKA_REPL_NO_CONNECT) {
@@ -568,7 +615,7 @@ void PikaServer::DBSyncSendFile(const std::string& ip, int port) {
   // Iterate to send files
   int ret = 0;
   std::string target_path;
-  std::string module = kDBSyncModule + "_" + slash::IpPortString(host_, port_);
+  std::string module = kDBSyncModule + "_" + slash::IpPortString(ms_host_, port_);
   std::vector<std::string>::iterator it = descendant.begin();
   slash::RsyncRemote remote(ip, port, module, g_pika_conf->db_sync_speed() * 1024);
   for (; it != descendant.end(); ++it) {
@@ -756,7 +803,7 @@ void PikaServer::DoBgsave(void* arg) {
   out.open(info.path + "/info", std::ios::in | std::ios::trunc);
   if (out.is_open()) {
     out << (time(NULL) - info.start_time) << "s\n"
-      << p->host() << "\n" 
+      << p->ms_host() << "\n" 
       << p->port() << "\n"
       << info.filenum << "\n"
       << info.offset << "\n";
